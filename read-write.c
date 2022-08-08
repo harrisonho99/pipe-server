@@ -30,7 +30,7 @@
 
 int main(int argc, char *argv[])
 {
-    // socket server use pipe FD
+    // socket server use pipe technique to serve static file
     run_socket();
     return 0;
 }
@@ -71,16 +71,19 @@ void stream_file(FILE *in, FILE *out, char *buffer)
 
 void stream_fd(int in, int out, char *buffer, size_t buff_size)
 {
+    size_t nsent = 0;
+
     if (in)
     {
         int nread = 0;
         while ((nread = read(in, buffer, buff_size)) > 0)
-            write(out, buffer, nread);
+            nsent += send(out, buffer, nread, MSG_DONTROUTE);
         if (nread < 0)
         {
             error("read");
         }
     }
+    printf("%ld bytes sent\n", nsent);
 }
 
 void read_request_header(int client_fd, int out)
@@ -103,10 +106,11 @@ void read_request_header(int client_fd, int out)
 
 void close_client_fd(int client_fd)
 {
-    // shutdown read-write socket descriptor
+    // wait for the client read all the data
     sleep(3);
-    shutdown(client_fd, SHUT_WR);
-    close(client_fd);
+    // close underlying file descriptor
+    if (close(client_fd) < 0)
+        error("close");
 }
 
 void run_socket()
